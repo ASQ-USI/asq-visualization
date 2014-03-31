@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Simple Stack</title>
+        <script src="http://cdnjs.cloudflare.com/ajax/libs/d3/3.4.3/d3.js" charset="utf-8"></script>
+        <style>
+            body {
+                background-color: #000;
+            }
+
+            svg {
+                width: 960px;
+                height: 500px;
+                font: 24px sans-serif;   
+                shape-rendering: crispEdges;
+            }
+
+            .xAxis {
+                stroke: white;
+            }
+
+            div.tooltip {   
+              position: absolute;           
+              width: 80px;                  
+              height: 48px;                 
+              padding: 8px;             
+              font: 14px sans-serif;        
+              background: #1D1D1D;             
+              pointer-events: none; 
+              left: 100px;
+              right: 100px;        
+            }
+
+            .title {
+                font: 48px sans-serif;
+                font-weight: bold;
+            }
+
+            svg, div.tooltip, .title {
+                position: absolute;
+                color: white;
+                fill: white;
+                text-align: center;
+                vertical-align: center;
+            }
+
+            svg, div.tooltip {
+                border: 2px solid white;
+                background: #1D1D1D;
+            }
+
+            input.button {
+                position: absolute;
+                width: 80px;
+                text-align: center;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="viz"></div>
+ 
+        <script type="text/javascript">
+            function wrap(text, width) { // From: http://bl.ocks.org/mbostock/7555321
+              text.each(function() {
+                var text = d3.select(this),
+                    words = text.text().split(/\s+/).reverse(),
+                    word,
+                    line = [],
+                    lineNumber = 0,
+                    lineHeight = 1.1, // ems
+                    x = text.attr("x"),
+                    y = text.attr("y"),
+                    dy = parseFloat(text.attr("dy")),
+                    tspan = text.text(null).append("tspan").attr("x", x).attr("y", y).attr("dy", dy + "em");
+                while (word = words.pop()) {
+                  line.push(word);
+                  tspan.text(line.join(" "));
+                  if (tspan.node().getComputedTextLength() > width) {
+                    line.pop();
+                    tspan.text(line.join(" "));
+                    line = [word];
+                    tspan = text.append("tspan").attr("x", x).attr("y", y).attr("dy", ++lineNumber * lineHeight + dy + "em").text(word);
+                  }
+                }
+              });
+            }
+
+            function randomInt (low, high) {
+                return Math.floor(Math.random() * (high - low + 1) + low);
+            }
+
+            // DATA
+            var dataset = [
+              { "key" : "right", "5star": randomInt(0, 0), "4star": randomInt(0, 0), "3star": randomInt(0, 0), "2star": randomInt(0, 0), "1star": randomInt(0, 0) },
+              { "key" : "wrong", "5star": randomInt(0, 0), "4star": randomInt(0, 0), "3star": randomInt(0, 0), "2star": randomInt(0, 0), "1star": randomInt(0, 0) }
+            ];
+            
+            var mapped = d3.layout.stack()(['5star', '4star', '3star', '2star', '1star'].map(function(confidence) {
+                return dataset.map(function(d) { return { x: d.key, y: d[confidence]}; });
+            }));
+
+            var total = {
+                right : mapped[mapped.length-1][0].y0 + mapped[mapped.length-1][0].y,
+                wrong : mapped[mapped.length-1][1].y0 + mapped[mapped.length-1][1].y
+            };
+
+            var labelValues = {
+                right : "correct",
+                wrong : "incorrect"
+            }
+
+            var labels = dataset.map(function(d) {return labelValues[d.key] ;});
+
+            var stacked = d3.layout.stack()(mapped).map(function (d, i) { d[0].confidence = 5-i; d[1].confidence = 5-i; return d;});
+
+
+            // GRAPH
+            var margin = {top: 60, right: 40, bottom: 60, left: 120},
+                width = 960 - margin.left - margin.right,
+                height = 500 - margin.top - margin.bottom;
+            
+            var chart = d3.select('.viz').append('svg')
+                .attr('width', width + margin.left + margin.right)
+                .attr('height', height + margin.top + margin.bottom)
+                .append('svg:g')
+                .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+
+
+            var graphBBox = d3.select('svg').node().getBoundingClientRect();
+
+            d3.select('.viz').append("text")
+              .attr("class", "title")
+              .style("left", function() { return graphBBox.left + 'px'; })
+              .style("width", function() { return graphBBox.width + 'px'; })
+              .style("top", function(d) { return graphBBox.top + 5 + 'px'; })
+              .text("Correctness");
+
+             var toolTip = d3.select('.viz').append('div')
+                .attr('class', 'tooltip')
+                .style('opacity', 0);
+
+            var x = d3.scale.linear()
+                .domain([0, d3.max([total.right, total.wrong])])
+                .range([0, width]);
+
+            var y = d3.scale.ordinal()
+                .domain(mapped[0].map(function(d) { return d.x; }))
+                .rangeRoundBands([0, height], .3);
+
+            var color = {
+                right : ['#E5E5FF', '#B3B3FF', '#7F7FFF', '#4D4DFF', '#1A1AFF'],
+                wrong : ['#FFE5E5', '#FFB3B3', '#FF7F7F', '#FF4D4D', '#FF1A1A'] 
+            };
+
+
+            var yAxis = d3.svg.axis()
+                .scale(y)
+                .tickPadding(6)
+                .outerTickSize(2)
+                .tickFormat(function (d) {
+                    return labelValues[d] + ' (' + total[d] + ')' ;
+                })
+                .orient('left');
+             
+            chart.append('g')
+                .attr('class', 'yAxis')
+                .call(yAxis).selectAll(".tick text").call(wrap, y.rangeBand());
+
+            var xAxis = d3.svg.axis()
+                .scale(x)
+                .tickPadding(11)
+                .ticks(Math.floor(d3.max([total.right, total.wrong])/10))
+                .tickSize(-height, 0 ,0)
+                // .innerTickSize(-2)
+                .orient('bottom');
+             
+            chart.append('g')
+                .attr('class', 'xAxis')
+                .attr("transform", "translate(0," + height + ")")
+                .call(xAxis);
+
+
+
+            // CHART DATA
+            var bars = chart.selectAll('g.bar')
+                .data(stacked)
+                .enter()
+                .append('chart:g')
+                .attr('class', 'bar')
+                .attr('class', function(d, i) { return 'asq-confidence' + (5-i); });
+
+            var rects = bars.selectAll('rect')
+                .data(function(d) { return d; })
+                .enter().append('svg:rect')
+                .attr('x', function(d) { return x(d.y0); })
+                .attr('y', function(d) { return y(d.x) + y.rangeBand() * (0.5-d.confidence/10); })
+                .attr('width', function(d) { return x(d.y); })
+                .attr('class', function(d) { return d.x; })
+                .attr('height', function(d) { return y.rangeBand() * d.confidence/5; })
+                .style('fill', function(d) { return color[d.x][d.confidence-1]; })
+                .style('stroke', function(d) { return d3.rgb(color[d.x][d.confidence-1]).darker(); })
+                .on('mouseover', function(d) {  
+                    var bbox = this.getBoundingClientRect();
+                    var left = bbox.left + bbox.width * 0.5 - 50;
+                    var top = bbox.top + bbox.height * 0.5 - 32;
+                    
+                    toolTip.transition()        
+                        .duration(200)      
+                        .style('opacity', .9);      
+                    
+                    toolTip.html([
+                        Array(d.confidence + 1).join('&#x2605;'),
+                        Array(5 - d.confidence + 1).join('&#x2606;'),
+                        '<br/>Confidence<br/>', d.y, ' (',
+                        Math.round(100 * d.y / total[d.x]), '%)'
+                    ].join(''))  
+                    .style('left', left + 'px')     
+                    .style('top', top + 'px');    
+                    })                  
+                .on('mouseout', function(d) {       
+                    toolTip.transition()        
+                        .duration(500)      
+                        .style('opacity', 0);   
+                });
+
+            var towers = true;
+
+            var toggle = d3.select('.viz')
+                .append('input')
+                .attr('type','button')
+                .attr('class','button')
+                .attr('value', 'Bars')
+                .style('left', function(d) { return (graphBBox.left + graphBBox.width - this.getBoundingClientRect().width - margin.right) + 'px';})
+                .style('top', function(d) { return (graphBBox.top+0.5*margin.top) + 'px'; })
+                .on('click', function () {
+                    towers = !towers;
+                    rects.data(function(d) { return d; })
+                        .transition()
+                        .attr('y', function(d) { 
+                            if (towers) {
+                                return y(d.x) + y.rangeBand() * (0.5 - d.confidence / 10);
+                            }
+                            return y(d.x);
+                        })
+                        .attr('height', function(d) { 
+                            if (towers) {
+                                return y.rangeBand() * d.confidence/5;
+                            }
+                            return y.rangeBand();
+                        });
+
+                    this.value = !towers ? 'Towers' : 'Bars';
+                });
+
+                var udpate = d3.select('.viz')
+                .append('input')
+                .attr('type','button')
+                .attr('class','button')
+                .attr('value', 'Update')
+                .style('left', function(d) { return (graphBBox.left + graphBBox.width - this.getBoundingClientRect().width - margin.right) + 'px';})
+                .style('top', function(d) { return (graphBBox.top+0.5*margin.top + 20) + 'px'; })
+                .on('click', function () {
+                    dataset = [
+                      { "key" : "right", "5star": randomInt(0, 20), "4star": randomInt(0, 20), "3star": randomInt(0, 20), "2star": randomInt(0, 20), "1star": randomInt(0, 20) },
+                      { "key" : "wrong", "5star": randomInt(0, 20), "4star": randomInt(0, 20), "3star": randomInt(0, 20), "2star": randomInt(0, 20), "1star": randomInt(0, 20) }
+                    ];
+                    mapped = d3.layout.stack()(['5star', '4star', '3star', '2star', '1star'].map(function(confidence) {
+                        return dataset.map(function(d) { return { x: d.key, y: d[confidence]}; });
+                    }));
+
+                    total.right = mapped[mapped.length-1][0].y0 + mapped[mapped.length-1][0].y;
+                    total.wrong = mapped[mapped.length-1][1].y0 + mapped[mapped.length-1][1].y;
+
+                    stacked = d3.layout.stack()(mapped).map(function (d, i) { d[0].confidence = 5-i; d[1].confidence = 5-i; return d;});
+
+                    dataset.forEach(function(group) {
+                        console.log(group.key + ':');
+                        ['5star', '4star', '3star', '2star', '1star'].forEach(function (key) {
+                            console.log(key + ': ' + group[key]);
+                        });
+                    });
+
+                    x.domain([0, d3.max([total.right, total.wrong])])
+                        .range([0, width]);
+
+                    y.domain(mapped[0].map(function(d) { return d.x; }))//.domain(d3.range(dataset.length))
+                        .rangeRoundBands([0, height], .3);
+
+                    xAxis.scale(x)
+                        .ticks(Math.floor(d3.max([total.right, total.wrong])/10));
+                    yAxis.scale(y);
+
+                    chart.selectAll('g.xAxis').transition()
+                        .call(xAxis);
+                    chart.selectAll('g.yAxis').transition()
+                        .call(yAxis).selectAll(".tick text").call(wrap, y.rangeBand());
+
+                    bars.data(stacked)
+
+                    rects
+                        .data(function(d) { return d; })
+                        .transition()
+                        .attr('x', function(d) { return x(d.y0); })
+                        //.attr('y', function(d) { return y(d.x) + y.rangeBand() * (0.5-d.confidence/10); })
+                        .attr('width', function(d) { return x(d.y); })
+                        //.attr('class', function(d) { return d.x; })
+                        //.attr('height', function(d) { return y.rangeBand() * d.confidence/5; })
+
+                });
+
+        </script>
+    </body>
+</html>
