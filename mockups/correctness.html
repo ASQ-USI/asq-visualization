@@ -123,6 +123,7 @@
                 .attr('width', width + margin.left + margin.right)
                 .attr('height', height + margin.top + margin.bottom)
                 .append('svg:g')
+                .attr('class', 'chart')
                 .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
 
 
@@ -185,9 +186,8 @@
             var bars = chart.selectAll('g.bar')
                 .data(stacked)
                 .enter()
-                .append('chart:g')
-                .attr('class', 'bar')
-                .attr('class', function(d, i) { return 'asq-confidence' + (5-i); });
+                .append('g')
+                .attr('class', function(d, i) { return 'bar asq-confidence' + (5-i); });
 
             var rects = bars.selectAll('rect')
                 .data(function(d) { return d; })
@@ -270,7 +270,7 @@
 
                     total.right = mapped[mapped.length-1][0].y0 + mapped[mapped.length-1][0].y;
                     total.wrong = mapped[mapped.length-1][1].y0 + mapped[mapped.length-1][1].y;
-
+                    console.log(mapped);
                     stacked = d3.layout.stack()(mapped).map(function (d, i) { d[0].confidence = 5-i; d[1].confidence = 5-i; return d;});
 
                     dataset.forEach(function(group) {
