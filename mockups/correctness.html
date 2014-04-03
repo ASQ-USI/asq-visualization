@@ -296,6 +296,8 @@
                         .call(yAxis).selectAll(".tick text").call(wrap, y.rangeBand());
 
                     bars.data(stacked)
+                    console.log('rects');
+                    console.log(rects);
 
                     rects
                         .data(function(d) { return d; })

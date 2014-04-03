@@ -1,4 +1,5 @@
-var utils = require('utils');
+var d3  = require('d3')
+, utils = require('../utils');
 
 module.exports = function Correctness() {
 
@@ -23,7 +24,7 @@ module.exports = function Correctness() {
   
   // Update the data (does not redraw anything)
   this.update = function update(prop, data) {
-    
+
     // Map data for d3
     var mapped = d3.layout.stack()(
       ['5star', '4star', '3star', '2star', '1star'].map(
@@ -33,7 +34,6 @@ module.exports = function Correctness() {
               return { x: d.key, y: d[confidence] };
           });
     }));
-
     prop.categories = mapped[0].map(function(d) { return d.x; });
 
     var stacked = d3.layout.stack()(mapped).map(
@@ -46,6 +46,9 @@ module.exports = function Correctness() {
     prop.data = stacked;
 
     // Update maxValue
+    if (!prop.maxVal) {
+      prop.maxVal = {};
+    }
     prop.maxVal.right = mapped[mapped.length-1][0].y0
       + mapped[mapped.length-1][0].y;
     prop.maxVal.wrong = mapped[mapped.length-1][1].y0
@@ -57,7 +60,7 @@ module.exports = function Correctness() {
 
     // Update x-axis
     prop.x.domain([0, d3.max([prop.maxVal.right, prop.maxVal.wrong])])
-      .range([0, width]);
+      .range([0, prop.width]);
     prop.xAxis.scale(prop.x)
       .ticks(Math.floor(d3.max([prop.maxVal.right, prop.maxVal.wrong])/10));
 
@@ -67,13 +70,13 @@ module.exports = function Correctness() {
     prop.yAxis.scale(prop.y);
 
     // Set data
-    d3.select(prop.selector).selectAll('g.bar').data(prop.data);
+    var bars = d3.select(prop.selector).selectAll('g.bar').data(prop.data);
 
     // Update appearance of bars
-    rects.data(function(d) { return d; })
+    bars.selectAll('rect').data(function(d) { return d; })
       .transition()
-      .attr('x', function(d) { return x(d.y0); })
-      .attr('width', function(d) { return x(d.y); })
+      .attr('x', function(d) { return prop.x(d.y0); })
+      .attr('width', function(d) { return prop.x(d.y); })
   };
 
   /*
@@ -91,12 +94,12 @@ module.exports = function Correctness() {
     chart.selectAll('g.yAxis').transition()
       .call(prop.yAxis)
       .selectAll('.tick text')
-        .call(utils.wrapLabel, y.rangeBand());
+        .call(utils.wrapLabel, prop.y.rangeBand());
 
-    chart.selectAll('rect').data(function(d) { return d; })
+    chart.selectAll('g.bar').selectAll('rect').data(function(d) { return d; })
       .transition()
-      .attr('x', function(d) { return x(d.y0); })
-      .attr('width', function(d) { return x(d.y); });
+      .attr('x', function(d) { return prop.x(d.y0); })
+      .attr('width', function(d) { return prop.x(d.y); });
 
     return this;
   };
@@ -105,6 +108,8 @@ module.exports = function Correctness() {
   this.draw = function draw(prop) {
     // Clean the container
     d3.select(prop.selector).html('');
+
+    var that = this; // Accees the object in d3 data functions
 
     // SVG Container
     var chart = d3.select(prop.selector).append('svg')
@@ -116,8 +121,8 @@ module.exports = function Correctness() {
         + prop.margin.top + ')');
 
     // Graph bounding box
-    var graphBBox = d3.select(prop.selector)
-      .('svg').node().getBoundingClientRect();
+    var graphBBox = d3.select(prop.selector).select('svg')
+      .node().getBoundingClientRect();
 
     // Title
     d3.select(prop.selector).append('text')
@@ -128,7 +133,7 @@ module.exports = function Correctness() {
       .text('Correctness');
 
     // Tooltip
-    var tooltip = d3.select(prop.selector).append('div')
+    var toolTip = d3.select(prop.selector).append('div')
       .attr('class', 'tooltip')
       .style('opacity', 0);
 
@@ -159,7 +164,7 @@ module.exports = function Correctness() {
       .tickPadding(6)
       .outerTickSize(2)
       .tickFormat(function (d) {
-          return this.labelValues[d] + ' (' + prop.maxVal[d] + ')' ;
+          return that.labelValues[d] + ' (' + prop.maxVal[d] + ')' ;
       })
       .orient('left');
      
@@ -193,9 +198,9 @@ module.exports = function Correctness() {
         }
         return prop.y.rangeBand();
       })
-      .style('fill', function(d) { return this.color[d.x][d.confidence - 1]; })
+      .style('fill', function(d) { return that.color[d.x][d.confidence - 1]; })
       .style('stroke', function(d) {
-        return d3.rgb(this.color[d.x][d.confidence - 1]).darker();
+        return d3.rgb(that.color[d.x][d.confidence - 1]).darker();
       })
       .on('mouseover', function displayTooltip(d) {  
         var bbox = this.getBoundingClientRect();
@@ -235,26 +240,28 @@ module.exports = function Correctness() {
         return ( graphBBox.top + 0.5 * prop.margin.top ) + 'px';
       })
       .on('click', function toggle() {
-        prop.towers = !prop.towers;
+        prop.isTowers = !prop.isTowers;
         rects.data(function(d) { return d; })
         .transition()
         .attr('y', function(d) { 
-          if (towers) {
+          if (prop.isTowers) {
             return prop.y(d.x) + prop.y.rangeBand() * (0.5 - d.confidence / 10);
           }
           return prop.y(d.x);
         })
         .attr('height', function(d) { 
-          if (towers) {
+          if (prop.isTowers) {
             return prop.y.rangeBand() * d.confidence / 5;
           }
           return prop.y.rangeBand();
         });
 
-        this.value = !towers ? 'Show towers' : 'Show bars';
+        this.value = !prop.isTowers ? 'Show towers' : 'Show bars';
       });
     prop.isDrawn = true;
 
     return this;
   };
+
+  return this;
 }

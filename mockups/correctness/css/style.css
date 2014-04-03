@@ -1,0 +1,50 @@
+body {
+    background-color: #000;
+}
+
+svg {
+    width: 960px;
+    height: 500px;
+    font: 24px sans-serif;   
+    shape-rendering: crispEdges;
+}
+
+.xAxis {
+    stroke: white;
+}
+
+div.tooltip {   
+  position: absolute;           
+  width: 80px;                  
+  height: 48px;                 
+  padding: 8px;             
+  font: 14px sans-serif;        
+  background: #1D1D1D;             
+  pointer-events: none; 
+  left: 100px;
+  right: 100px;        
+}
+
+.title {
+    font: 48px sans-serif;
+    font-weight: bold;
+}
+
+svg, div.tooltip, .title {
+    position: absolute;
+    color: white;
+    fill: white;
+    text-align: center;
+    vertical-align: center;
+}
+
+svg, div.tooltip {
+    border: 2px solid white;
+    background: #1D1D1D;
+}
+
+input.button {
+    position: absolute;
+    width: 80px;
+    text-align: center;
+}

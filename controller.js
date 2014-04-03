@@ -1,4 +1,4 @@
-var graphs = require('graphs');
+var graphs = require('./graphs');
 
 module.exports = function VizController() {
 
@@ -7,12 +7,13 @@ module.exports = function VizController() {
     return new VizController();
   }
 
-  // Current graph
-  this.current = {};
+  // Current graphs
+  this.currents = {};
 
   this.graphProp = {};
 
-  this.register = function register(selector, graph, graphProp) {
+  this.register = function register(graph, graphProp) {
+    var selector = graphProp.selector;
     if (! this.graphProp[selector]) {
       this.graphProp[selector] = {};
     }
@@ -21,25 +22,26 @@ module.exports = function VizController() {
     
   }
 
-  //Update  current graph with new data
-  this.update = function update(selector, graph, data) {
-    if (! this.graphProp[selector] || ! this.graphProp[selector][graph]) {
+  //Update graph with new data
+  this.update = function update(selector, graphName, data) {
+    if (! this.graphProp[selector] || ! this.graphProp[selector][graphName]) {
       return this;
     }
-    var graph = graphs[graph];
-    var prop = this.graphProp[selector][graph]
+    var graph = graphs[graphName];
+    var prop = this.graphProp[selector][graphName];
     graph.update(prop, data);
-    if (this.currents[selector] === graph) { //update on current requires render
+    if (this.currents[selector] === graphName) { //update on current requires render
       graph.render(prop, data);
     }
     return this;
   }
 
-  this.render = function render(selector, graph) {
-    if (! this.graphProp[selector] || ! this.graphProp[selector][graph]) {
+  this.render = function render(selector, graphName) {
+    if (! this.graphProp[selector] || ! this.graphProp[selector][graphName]) {
       return this;
     }
-    graphs[graph].render(this.graphProp[selector][graph]);
+    graphs[graphName].render(this.graphProp[selector][graphName]);
+    this.currents[selector] = graphName
     return this;
   }
 }

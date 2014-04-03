@@ -32,5 +32,5 @@ function wrapLabel(text, width) { // From: http://bl.ocks.org/mbostock/7555321
 }
 
 module.exports = {
-  wrapLabel = wrapLabel
+  wrapLabel : wrapLabel
 };
