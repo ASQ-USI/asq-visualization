@@ -1,324 +1,394 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-var graphs = require('./graphs');
+var d3  = require('d3')
+, utils = require('../../utils');
 
-module.exports = function VizController() {
+function Correctness(selector, properties) {
 
   // Force object creation
-  if (!(this instanceof VizController)) {
-    return new VizController();
+  if (!(this instanceof Correctness)) {
+    return new Correctness(properties);
+  }
+
+  this.selector   = selector;
+  this.margin     = properties.margin;
+  this.width      = properties.width;
+  this.height     = properties.height;
+  this.showTowers = properties.showTowers || false;
+  this.isDrawn    = false;
+  
+  this.x          = null;
+  this.xAxis      = null;
+  this.y          = null;
+  this.yAxis      = null;
+  this.maxVal     = { right : null, wrong : null };
+  this.categories = null;
+  return this;
+}
+
+Correctness.color = {
+      right : ['#E5E5FF', '#B3B3FF', '#7F7FFF', '#4D4DFF', '#1A1AFF'],
+      wrong : ['#FFE5E5', '#FFB3B3', '#FF7F7F', '#FF4D4D', '#FF1A1A'] 
+};
+
+Correctness.labelValues = { right : 'correct', wrong : 'incorrect' };
+
+// Update the data (does not redraw anything)
+Correctness.prototype.update = function update(data) {
+
+  // Map data for d3
+  var mapped = d3.layout.stack()(
+    ['5star', '4star', '3star', '2star', '1star'].map(
+      function outerMapFn(confidence) {
+        return data.map(
+          function innerMapFn(d) {
+            return { x: d.key, y: d[confidence] };
+        });
+  }));
+  this.categories = mapped[0].map(function(d) { return d.x; });
+
+  var stacked = d3.layout.stack()(mapped).map(
+    function stackFN(d, i) {
+      d[0].confidence = 5-i;
+      d[1].confidence = 5-i;
+      return d;
+  });
+
+  this.data = stacked;
+
+  // Update maxValue
+  this.maxVal.right = mapped[mapped.length-1][0].y0
+    + mapped[mapped.length-1][0].y;
+  this.maxVal.wrong = mapped[mapped.length-1][1].y0
+    + mapped[mapped.length-1][1].y;
+
+  if (! this.isDrawn) {
+    return this;
+  }
+
+  var that = this;
+
+  // Update x-axis
+  this.x.domain([0, d3.max([this.maxVal.right, this.maxVal.wrong])])
+    .range([0, this.width]);
+  this.xAxis.scale(this.x)
+    .ticks(Math.floor(d3.max([this.maxVal.right, this.maxVal.wrong])/10));
+
+  // Update y-axis
+  this.y.domain(this.categories)
+    .rangeRoundBands([0, this.height], .3);
+  this.yAxis.scale(this.y);
+
+  // Set data
+  var bars = d3.select(this.selector).selectAll('g.av-cor-bar').data(this.data);
+
+  // Update appearance of bars
+  bars.selectAll('rect').data(function(d) { return d; })
+    .transition()
+    .attr('x', function(d) { return that.x(d.y0); })
+    .attr('width', function(d) { return that.x(d.y); })
+};
+
+/*
+ * Update rendering of chart (to be called after update)
+ * This take care of drawing the entire chart if it is not done yet.
+ */
+Correctness.prototype.render = function render() {
+  if (!this.isDrawn) {
+    return this.draw();
+  }
+  var that = this;
+  var chart = d3.select(this.selector).select('.av-cor-chart');
+
+  chart.selectAll('g.av-cor-xAxis').transition()
+    .call(this.xAxis);
+  chart.selectAll('g.av-cor-yAxis').transition()
+    .call(this.yAxis)
+    .selectAll('.tick text')
+      .call(utils.wrapLabel, this.y.rangeBand());
+
+  chart.selectAll('g.av-cor-bar').selectAll('rect')
+    .data(function(d) { return d; })
+    .transition()
+    .attr('x', function(d) { return that.x(d.y0); })
+    .attr('width', function(d) { return that.x(d.y); });
+
+  return this;
+};
+
+// Draw the the complete chart
+Correctness.prototype.draw = function draw() {
+  // Clean the container
+  d3.select(this.selector).html('');
+
+  var that = this; // Accees the object in d3 data functions
+
+  // SVG Container
+  var chart = d3.select(this.selector).append('svg')
+    .attr('width', this.width + this.margin.left + this.margin.right)
+    .attr('height', this.height + this.margin.top + this.margin.bottom)
+    .attr('class', 'av-cor')
+    .append('svg:g')
+    .attr('class', 'av-cor-chart')
+    .attr('transform', 'translate(' + this.margin.left + ',' 
+      + this.margin.top + ')');
+
+  // Graph bounding box
+  var graphBBox = d3.select(this.selector).select('svg')
+    .node().getBoundingClientRect();
+
+  // Title
+  d3.select(this.selector).append('text')
+    .attr('class', 'av-cor-title')
+    .style('left', function() { return graphBBox.left + 'px'; })
+    .style('width', function() { return graphBBox.width + 'px'; })
+    .style('top', function(d) { return graphBBox.top + 5 + 'px'; })
+    .text('Correctness');
+
+  // Tooltip
+  var toolTip = d3.select(this.selector).append('div')
+    .attr('class', 'av-cor-tooltip')
+    .style('opacity', 0);
+
+  // X-axis
+  this.x = d3.scale.linear()
+    .domain([0, d3.max([this.maxVal.right, this.maxVal.wrong])])
+    .range([0, this.width]);
+
+  this.xAxis = d3.svg.axis()
+    .scale(this.x)
+    .tickPadding(11)
+    .ticks(Math.floor(d3.max([this.maxVal.right, this.maxVal.wrong])/10))
+    .tickSize(-this.height, 0 ,0)
+    .orient('bottom');
+
+  chart.append('g')
+            .attr('class', 'av-cor-xAxis')
+            .attr('transform', 'translate(0,' + this.height + ')')
+            .call(this.xAxis);
+
+  // Y-axis
+  this.y = d3.scale.ordinal()
+    .domain(this.categories)
+    .rangeRoundBands([0, this.height], .3);
+
+  this.yAxis = d3.svg.axis()
+    .scale(this.y)
+    .tickPadding(6)
+    .outerTickSize(2)
+    .tickFormat(function (d) {
+        return Correctness.labelValues[d] + ' (' + that.maxVal[d] + ')' ;
+    })
+    .orient('left');
+   
+  chart.append('g')
+    .attr('class', 'av-cor-yAxis')
+    .call(this.yAxis)
+    .selectAll('.tick text')
+      .call(utils.wrapLabel, this.y.rangeBand());
+
+  // CHART DATA
+  var bars = chart.selectAll('g.av-cor-bar').data(this.data)
+    .enter()
+    .append('chart:g')
+    .attr('class', 'av-cor-bar')
+
+  var rects = bars.selectAll('rect').data(function(d) { return d; })
+    .enter()
+    .append('svg:rect')
+    .attr('x', function(d) { return that.x(d.y0); })
+    .attr('y', function(d) { 
+      if (that.showTowers) {
+        return that.y(d.x) + that.y.rangeBand() * (0.5 - d.confidence / 10);
+      }
+      return that.y(d.x);
+    })
+    .attr('width', function(d) { return that.x(d.y); })
+    //.attr('class', function(d) { return d.x; })
+    .attr('height', function(d) {
+      if (that.showTowers) {
+        return that.y.rangeBand() * d.confidence / 5;
+      }
+      return that.y.rangeBand();
+    })
+    .style('fill', function(d) {
+      return Correctness.color[d.x][d.confidence - 1]; })
+    .style('stroke', function(d) {
+      return d3.rgb(Correctness.color[d.x][d.confidence - 1]).darker();
+    })
+    .on('mouseover', function displayTooltip(d) {  
+      var bbox = this.getBoundingClientRect();
+      var left = bbox.left + bbox.width * 0.5 - 50;
+      var top = bbox.top + bbox.height * 0.5 - 32;
+
+      toolTip.transition()        
+        .duration(200)      
+        .style('opacity', .9);      
+      
+      toolTip.html([
+        Array(d.confidence + 1).join('&#x2605;'),
+        Array(5 - d.confidence + 1).join('&#x2606;'),
+        '<br/>Confidence<br/>', d.y, ' (',
+        Math.round(100 * d.y / that.maxVal[d.x]), '%)'
+      ].join(''))  
+      .style('left', left + 'px')     
+      .style('top', top + 'px');    
+    })                  
+    .on('mouseout', function hideTooltip(d) {       
+        toolTip.transition()        
+          .duration(500)      
+          .style('opacity', 0);   
+    });
+
+  // Towers / Bars toggle button
+  d3.select(this.selector)
+    .append('input')
+    .attr('type','button')
+    .attr('class','av-cor-button')
+    .attr('value', 'Bars')
+    .style('left', function(d) {
+      return ( graphBBox.left + graphBBox.width 
+        - this.getBoundingClientRect().width - that.margin.right ) + 'px';
+    })
+    .style('top', function(d) { 
+      return ( graphBBox.top + 0.5 * that.margin.top ) + 'px';
+    })
+    .on('click', function toggle() {
+      that.showTowers = !that.showTowers;
+      rects.data(function(d) { return d; })
+      .transition()
+      .attr('y', function(d) { 
+        if (that.showTowers) {
+          return that.y(d.x) + that.y.rangeBand() * (0.5 - d.confidence / 10);
+        }
+        return that.y(d.x);
+      })
+      .attr('height', function(d) { 
+        if (that.showTowers) {
+          return that.y.rangeBand() * d.confidence / 5;
+        }
+        return that.y.rangeBand();
+      });
+
+      this.value = !that.showTowers ? 'Show towers' : 'Show bars';
+    });
+  this.isDrawn = true;
+
+  return this;
+};
+
+module.exports = Correctness;
+},{"../../utils":6,"d3":5}],2:[function(require,module,exports){
+module.exports = {
+	Correctness : require('./correctness')
+}
+},{"./correctness":1}],3:[function(require,module,exports){
+var graphLib = require('./graphs');
+
+function Manager() {
+
+  // Force object creation
+  if (!(this instanceof Manager)) {
+    return new Manager();
   }
 
   // Current graphs
   this.currents = {};
 
-  this.graphProp = {};
-
-  this.register = function register(graph, graphProp) {
-    var selector = graphProp.selector;
-    if (! this.graphProp[selector]) {
-      this.graphProp[selector] = {};
-    }
-    this.graphProp[selector][graph] = graphProp;
-    return this;
-    
-  }
-
-  //Update graph with new data
-  this.update = function update(selector, graphName, data) {
-    if (! this.graphProp[selector] || ! this.graphProp[selector][graphName]) {
-      return this;
-    }
-    var graph = graphs[graphName];
-    var prop = this.graphProp[selector][graphName];
-    graph.update(prop, data);
-    if (this.currents[selector] === graphName) { //update on current requires render
-      graph.render(prop, data);
-    }
-    return this;
-  }
-
-  this.render = function render(selector, graphName) {
-    if (! this.graphProp[selector] || ! this.graphProp[selector][graphName]) {
-      return this;
-    }
-    graphs[graphName].render(this.graphProp[selector][graphName]);
-    this.currents[selector] = graphName
-    return this;
-  }
+  this.graphs = {};
 }
-},{"./graphs":3}],2:[function(require,module,exports){
-var d3  = require('d3')
-, utils = require('../utils');
 
-module.exports = function Correctness() {
-
-  // Force object creation
-  if (!(this instanceof Correctness)) {
-    return new Correctness();
+/**
+ *  @method register - Register a new graph to manage.
+ *  @param {string} selector - A string to uniquely select the graph
+ *  @param {string} graphName - The name of the graph
+ *  @param {Object} prop - The properties of the graph. Must include a
+ *   "selector" attribute as a string to uniquely select the graph.
+ *   (Usually an id such as: '#graphId')
+ **/
+Manager.prototype.register = function register(selector, graphName, graphProp) {
+  if (! this.graphs[selector]) {
+    this.graphs[selector] = {};
   }
-
-  // Indicate whether to completely draw the chart again or not.
-  this.isDrawn = false;
-
-  // Colors for the bars from confidence 5 to 0.
-  this.color = {
-      right : ['#E5E5FF', '#B3B3FF', '#7F7FFF', '#4D4DFF', '#1A1AFF'],
-      wrong : ['#FFE5E5', '#FFB3B3', '#FF7F7F', '#FF4D4D', '#FF1A1A'] 
-  };
-
-  // Actual labels (nicer than right and wrong)
-  this.labelValues = { right : 'correct', wrong : 'incorrect' };
-
-
-  
-  // Update the data (does not redraw anything)
-  this.update = function update(prop, data) {
-
-    // Map data for d3
-    var mapped = d3.layout.stack()(
-      ['5star', '4star', '3star', '2star', '1star'].map(
-        function outerMapFn(confidence) {
-          return data.map(
-            function innerMapFn(d) {
-              return { x: d.key, y: d[confidence] };
-          });
-    }));
-    prop.categories = mapped[0].map(function(d) { return d.x; });
-
-    var stacked = d3.layout.stack()(mapped).map(
-      function stackFN(d, i) {
-        d[0].confidence = 5-i;
-        d[1].confidence = 5-i;
-        return d;
-    });
-
-    prop.data = stacked;
-
-    // Update maxValue
-    if (!prop.maxVal) {
-      prop.maxVal = {};
-    }
-    prop.maxVal.right = mapped[mapped.length-1][0].y0
-      + mapped[mapped.length-1][0].y;
-    prop.maxVal.wrong = mapped[mapped.length-1][1].y0
-      + mapped[mapped.length-1][1].y;
-
-    if (! prop.isDrawn) {
-      return this;
-    }
-
-    // Update x-axis
-    prop.x.domain([0, d3.max([prop.maxVal.right, prop.maxVal.wrong])])
-      .range([0, prop.width]);
-    prop.xAxis.scale(prop.x)
-      .ticks(Math.floor(d3.max([prop.maxVal.right, prop.maxVal.wrong])/10));
-
-    // Update y-axis
-    prop.y.domain(prop.categories)
-      .rangeRoundBands([0, prop.height], .3);
-    prop.yAxis.scale(prop.y);
-
-    // Set data
-    var bars = d3.select(prop.selector).selectAll('g.bar').data(prop.data);
-
-    // Update appearance of bars
-    bars.selectAll('rect').data(function(d) { return d; })
-      .transition()
-      .attr('x', function(d) { return prop.x(d.y0); })
-      .attr('width', function(d) { return prop.x(d.y); })
-  };
-
-  /*
-   * Update rendering of chart (to be called after update)
-   * This take care of drawing the entire chart if it is not done yet.
-   */
-  this.render = function render(prop) {
-    if (!prop.isDrawn) {
-      return this.draw(prop);
-    }
-    var chart = d3.select(prop.selector).select('.chart');
-
-    chart.selectAll('g.xAxis').transition()
-      .call(prop.xAxis);
-    chart.selectAll('g.yAxis').transition()
-      .call(prop.yAxis)
-      .selectAll('.tick text')
-        .call(utils.wrapLabel, prop.y.rangeBand());
-
-    chart.selectAll('g.bar').selectAll('rect').data(function(d) { return d; })
-      .transition()
-      .attr('x', function(d) { return prop.x(d.y0); })
-      .attr('width', function(d) { return prop.x(d.y); });
-
-    return this;
-  };
-
-  // Draw the the complete chart
-  this.draw = function draw(prop) {
-    // Clean the container
-    d3.select(prop.selector).html('');
-
-    var that = this; // Accees the object in d3 data functions
-
-    // SVG Container
-    var chart = d3.select(prop.selector).append('svg')
-      .attr('width', prop.width + prop.margin.left + prop.margin.right)
-      .attr('height', prop.height + prop.margin.top + prop.margin.bottom)
-      .append('svg:g')
-      .attr('class', 'chart')
-      .attr('transform', 'translate(' + prop.margin.left + ',' 
-        + prop.margin.top + ')');
-
-    // Graph bounding box
-    var graphBBox = d3.select(prop.selector).select('svg')
-      .node().getBoundingClientRect();
-
-    // Title
-    d3.select(prop.selector).append('text')
-      .attr('class', 'title')
-      .style('left', function() { return graphBBox.left + 'px'; })
-      .style('width', function() { return graphBBox.width + 'px'; })
-      .style('top', function(d) { return graphBBox.top + 5 + 'px'; })
-      .text('Correctness');
-
-    // Tooltip
-    var toolTip = d3.select(prop.selector).append('div')
-      .attr('class', 'tooltip')
-      .style('opacity', 0);
-
-    // X-axis
-    prop.x = d3.scale.linear()
-      .domain([0, d3.max([prop.maxVal.right, prop.maxVal.wrong])])
-      .range([0, prop.width]);
-
-    prop.xAxis = d3.svg.axis()
-      .scale(prop.x)
-      .tickPadding(11)
-      .ticks(Math.floor(d3.max([prop.maxVal.right, prop.maxVal.wrong])/10))
-      .tickSize(-prop.height, 0 ,0)
-      .orient('bottom');
-
-    chart.append('g')
-              .attr('class', 'xAxis')
-              .attr('transform', 'translate(0,' + prop.height + ')')
-              .call(prop.xAxis);
-
-    // Y-axis
-    prop.y = d3.scale.ordinal()
-      .domain(prop.categories)
-      .rangeRoundBands([0, prop.height], .3);
-
-    prop.yAxis = d3.svg.axis()
-      .scale(prop.y)
-      .tickPadding(6)
-      .outerTickSize(2)
-      .tickFormat(function (d) {
-          return that.labelValues[d] + ' (' + prop.maxVal[d] + ')' ;
-      })
-      .orient('left');
-     
-    chart.append('g')
-      .attr('class', 'yAxis')
-      .call(prop.yAxis)
-      .selectAll('.tick text')
-        .call(utils.wrapLabel, prop.y.rangeBand());
-
-    // CHART DATA
-    var bars = chart.selectAll('g.bar').data(prop.data)
-      .enter()
-      .append('chart:g')
-      .attr('class', 'bar')
-
-    var rects = bars.selectAll('rect').data(function(d) { return d; })
-      .enter()
-      .append('svg:rect')
-      .attr('x', function(d) { return prop.x(d.y0); })
-      .attr('y', function(d) { 
-        if (prop.isTowers) {
-          return prop.y(d.x) + prop.y.rangeBand() * (0.5 - d.confidence / 10);
-        }
-        return prop.y(d.x);
-      })
-      .attr('width', function(d) { return prop.x(d.y); })
-      .attr('class', function(d) { return d.x; })
-      .attr('height', function(d) {
-        if (prop.isTowers) {
-          return prop.y.rangeBand() * d.confidence / 5;
-        }
-        return prop.y.rangeBand();
-      })
-      .style('fill', function(d) { return that.color[d.x][d.confidence - 1]; })
-      .style('stroke', function(d) {
-        return d3.rgb(that.color[d.x][d.confidence - 1]).darker();
-      })
-      .on('mouseover', function displayTooltip(d) {  
-        var bbox = this.getBoundingClientRect();
-        var left = bbox.left + bbox.width * 0.5 - 50;
-        var top = bbox.top + bbox.height * 0.5 - 32;
-
-        toolTip.transition()        
-          .duration(200)      
-          .style('opacity', .9);      
-        
-        toolTip.html([
-          Array(d.confidence + 1).join('&#x2605;'),
-          Array(5 - d.confidence + 1).join('&#x2606;'),
-          '<br/>Confidence<br/>', d.y, ' (',
-          Math.round(100 * d.y / prop.maxVal[d.x]), '%)'
-        ].join(''))  
-        .style('left', left + 'px')     
-        .style('top', top + 'px');    
-      })                  
-      .on('mouseout', function hideTooltip(d) {       
-          toolTip.transition()        
-            .duration(500)      
-            .style('opacity', 0);   
-      });
-
-    // Towers / Bars toggle button
-    d3.select(prop.selector)
-      .append('input')
-      .attr('type','button')
-      .attr('class','button')
-      .attr('value', 'Bars')
-      .style('left', function(d) {
-        return ( graphBBox.left + graphBBox.width 
-          - this.getBoundingClientRect().width - prop.margin.right ) + 'px';
-      })
-      .style('top', function(d) { 
-        return ( graphBBox.top + 0.5 * prop.margin.top ) + 'px';
-      })
-      .on('click', function toggle() {
-        prop.isTowers = !prop.isTowers;
-        rects.data(function(d) { return d; })
-        .transition()
-        .attr('y', function(d) { 
-          if (prop.isTowers) {
-            return prop.y(d.x) + prop.y.rangeBand() * (0.5 - d.confidence / 10);
-          }
-          return prop.y(d.x);
-        })
-        .attr('height', function(d) { 
-          if (prop.isTowers) {
-            return prop.y.rangeBand() * d.confidence / 5;
-          }
-          return prop.y.rangeBand();
-        });
-
-        this.value = !prop.isTowers ? 'Show towers' : 'Show bars';
-      });
-    prop.isDrawn = true;
-
-    return this;
-  };
-
+  //TODO: get width, height and margin from data attr. instead of prop obj.
+  this.graphs[selector][graphName] = new graphLib[graphName](selector, graphProp);
   return this;
 }
-},{"../utils":5,"d3":4}],3:[function(require,module,exports){
-module.exports = {
-	Correctness : require('./correctness')()
+
+/**
+ *  @method udpate - Update a graph with new data and re-render it if needed.
+ *  @param {string} selector - A string to uniquely select the graph. Must be
+ *    the same as given during registration.
+ *  @param {string} graphName - The name of the graph
+ *  @param {string} data - The data to pas to the graph.
+ **/
+Manager.prototype.update = function update(selector, graphName, data) {
+  if (! this.graphs[selector] || ! this.graphs[selector][graphName]) {
+    return this;
+  }
+  var graph = this.graphs[selector][graphName];
+  graph.update(data);
+  if (this.currents[selector] === graphName) { //update on current requires render
+    graph.render();
+  }
+  return this;
 }
-},{"./correctness":2}],4:[function(require,module,exports){
+
+/**
+ *  @method render - Render a graph.
+ *  @param {string} selector - A string to uniquely select the graph. Must be
+ *    the same as given in the prop. during registration.
+ *  @param {string} graphName - The name of the graph
+ **/
+Manager.prototype.render = function render(selector, graphName) {
+  if (! this.graphs[selector] || ! this.graphs[selector][graphName]) {
+    return this;
+  }
+  this.graphs[selector][graphName].render();
+  this.currents[selector] = graphName
+  return this;
+}
+
+module.exports = Manager;
+},{"./graphs":2}],4:[function(require,module,exports){
+Manager = require('../../manager');
+graphs = require('../../graphs');
+d3 = require('d3');
+var manager = new Manager()
+,  margin   = { top: 60, right: 40, bottom: 60, left: 120 }
+, width     = 960 - margin.left - margin.right
+, height    = 500 - margin.top - margin.bottom
+graphProp   = {
+    height : height,
+    width  : width,
+    margin : margin };
+
+function randomInt (low, high) {
+  return Math.floor(Math.random() * (high - low + 1) + low);
+}
+
+function randomData() {
+  return [
+    { "key" : "right", "5star": randomInt(0, 20),
+      "4star": randomInt(0, 20), "3star": randomInt(0, 20),
+      "2star": randomInt(0, 20), "1star": randomInt(0, 20) },
+    { "key" : "wrong", "5star": randomInt(0, 20),
+      "4star": randomInt(0, 20), "3star": randomInt(0, 20),
+      "2star": randomInt(0, 20), "1star": randomInt(0, 20) }
+  ];
+}
+
+loadMockup = function() {
+  manager.register('#viz', 'Correctness', graphProp)
+    .update('#viz', 'Correctness', randomData())
+    .render('#viz', 'Correctness'); // Must be called the first time.
+
+  var btn = document.getElementById('updateBtn');
+  btn.onclick = function() {
+    manager.update('#viz', 'Correctness', randomData())
+  }
+
+}
+},{"../../graphs":2,"../../manager":3,"d3":5}],5:[function(require,module,exports){
 !function() {
   var d3 = {
     version: "3.4.4"
@@ -9613,7 +9683,7 @@ module.exports = {
     this.d3 = d3;
   }
 }();
-},{}],5:[function(require,module,exports){
+},{}],6:[function(require,module,exports){
 function wrapLabel(text, width) { // From: http://bl.ocks.org/mbostock/7555321
   text.each(function() {
     var text   = d3.select(this),
@@ -9650,4 +9720,4 @@ function wrapLabel(text, width) { // From: http://bl.ocks.org/mbostock/7555321
 module.exports = {
   wrapLabel : wrapLabel
 };
-},{}]},{},[1]);
+},{}]},{},[4]);

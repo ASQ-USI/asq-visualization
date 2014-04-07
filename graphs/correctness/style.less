@@ -2,18 +2,16 @@ body {
     background-color: #000;
 }
 
-svg {
-    width: 960px;
-    height: 500px;
+svg.av-cor {
     font: 24px sans-serif;   
     shape-rendering: crispEdges;
 }
 
-.xAxis {
+.av-cor-xAxis {
     stroke: white;
 }
 
-div.tooltip {   
+div.av-cor-tooltip {   
   position: absolute;           
   width: 80px;                  
   height: 48px;                 
@@ -25,12 +23,12 @@ div.tooltip {
   right: 100px;        
 }
 
-.title {
+.av-cor-title {
     font: 48px sans-serif;
     font-weight: bold;
 }
 
-svg, div.tooltip, .title {
+svg.av-cor, div.av-cor-tooltip, .av-cor-title {
     position: absolute;
     color: white;
     fill: white;
@@ -38,12 +36,12 @@ svg, div.tooltip, .title {
     vertical-align: center;
 }
 
-svg, div.tooltip {
+svg.av-cor, div.av-cor-tooltip {
     border: 2px solid white;
     background: #1D1D1D;
 }
 
-input.button {
+input.av-cor-button {
     position: absolute;
     width: 80px;
     text-align: center;

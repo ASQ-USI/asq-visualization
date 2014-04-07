@@ -16,14 +16,14 @@ module.exports = function(grunt) {
     browserify: {
       dist: {
         src: ['controller.js'],
-        dest: 'dist/asq-visualization.js',
+        dest: 'dist/js/asq-visualization.js',
         options: {
           debug: true
         }
       },
-      correctness: {
-        src: ['mockups/correctness/js/correctness.js'],
-        dest: 'mockups/correctness/js/correctness-bundle.js',
+      mockups: {
+        src: ['mockups/js/mockups.js'],
+        dest: 'mockups/js/mockups-bundle.js',
         options: {
           debug: true
         }
@@ -44,35 +44,29 @@ module.exports = function(grunt) {
       }
     },
 
-    // less: {
-    //   development: {
-    //     options: {
-    //       paths: ['client/less']
-    //     },
-    //     files: {
-    //       'public/css/login.css': 'client/less/login.less',
-    //       'public/css/logoAnim.css': 'client/less/logoAnim.less',
-    //       'public/css/phone.css': 'client/less/phone.less',
-    //       'public/css/style.css': 'client/less/style.less'
-    //     }
-    //   },
-    //   production: {
-    //     options: {
-    //       paths: ['client/less'],
-    //       yuicompress: true
-    //     },
-    //     files: {
-    //       'public/css/login.css': 'client/less/login.less',
-    //       'public/css/logoAnim.css': 'client/less/logoAnim.less',
-    //       'public/css/phone.css': 'client/less/phone.less',
-    //       'public/css/style.css': 'client/less/style.less'
-    //     }
-    //   }
-    // },
+    less: {
+      development: {
+        options: {
+          paths: ['graphs/**/*.less']
+        },
+        files : {
+          'dist/css/asq-visualization.css' : 'graphs/**/*.less'
+        }
+      },
+      production: {
+        options: {
+          paths: ['graphs/**/*.less'],
+          yuicompress: true
+        },
+        files : {
+          'dist/css/asq-visualization.min.css' : 'graphs/**/*.less'
+        }
+      }
+    },
 
     //parallel tasks
     concurrent: {
-      compile: [/*'less', */'browserify:dist', 'browserify:correctness'],
+      compile: ['less', 'browserify:dist', 'browserify:mockups'],
       uglify: ['uglify'],
     },
 
@@ -82,20 +76,20 @@ module.exports = function(grunt) {
         livereload: true
       },
       dist: {
-        files: ['controller.js', 'graphs/*.js', 'utils/*.js', 'mockups/**/*.js'],
+        files: ['manager.js', 'graphs/**/*.js', 'utils/*.js', 'mockups/**/*.js'],
         tasks: ['concurrent:compile'],
         options: {
           spawn: false
           // interrupt: true
         },
-      }/*,
+      },
       less: {
-        files: ['client/less/*.less'],
+        files: ['graphs/**/*.less'],
         tasks: ['less:development'],
         options: {
           interrupt: true
         },
-      }*/
+      }
     }
   });
 
@@ -106,36 +100,7 @@ module.exports = function(grunt) {
   grunt.registerTask('devwatch', ['build-concurrent', 'watch']);
   grunt.registerTask('deploy', ['shell:deploy']);
 
-  // //ported from togetherjs
-  // //https://github.com/mozilla/togetherjs/blob/develop/Gruntfile.js
-  // grunt.registerTask('maybeless', 'Maybe compile togetherjs.less', function () {
-  // var sources = grunt.file.expand(['client/less/*.less']);
-  // var found = false;
-  // sources.forEach(function (fn) {
-  //   var source = fs.statSync(fn);
-  //   var basename = path.basename(fn)
-  //   var destFn = 'public/css/' + basename.substr(0, basename.length-4) + 'css';
-  //   if (! fs.existsSync(destFn)) {
-  //     found = true;
-  //     return;
-  //   }
-  //   var dest = fs.statSync(destFn);
-  //   if (source.mtime.getTime() > dest.mtime.getTime()) {
-  //     grunt.log.writeln('Destination LESS out of date: ' + destFn.cyan);
-  //     found = true;
-  //   }
-  // });
-  // if (found) {
-  //   grunt.task.run('less');
-  // } else {
-  //   grunt.log.writeln('No .less files need regenerating.');
-  // }
-  // });
-
   //npm tasks
   require('load-grunt-tasks')(grunt);
-
-  //load custom tasks
-  //grunt.loadTasks('./tasks');
 
 };

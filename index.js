@@ -1,4 +1,4 @@
 module.exports = {
-	VizController : require('./controller'),
-	graphs        : require('./graphs')
+	Manager : require('./manager'),
+	graphs  : require('./graphs')
 }
