@@ -1,5 +1,7 @@
-var d3  = require('d3')
-, utils = require('../../utils');
+/**  */
+var $ = require('jquery');
+var d3  = require('d3');
+var utils = require('../../utils');
 
 function Correctness(selector, properties) {
 
@@ -10,11 +12,11 @@ function Correctness(selector, properties) {
 
   this.selector   = selector;
   this.margin     = properties.margin;
-  this.width      = properties.width;
-  this.height     = properties.height;
-  this.showTowers = properties.showTowers || false;
+  this.width      = properties.width - this.margin.left - this.margin.right;
+  this.height     = properties.height - this.margin.top - this.margin.bottom;
+  this.showTowers = false;
   this.isDrawn    = false;
-  
+
   this.x          = null;
   this.xAxis      = null;
   this.y          = null;
@@ -25,8 +27,8 @@ function Correctness(selector, properties) {
 }
 
 Correctness.color = {
-      right : ['#E5E5FF', '#B3B3FF', '#7F7FFF', '#4D4DFF', '#1A1AFF'],
-      wrong : ['#FFE5E5', '#FFB3B3', '#FF7F7F', '#FF4D4D', '#FF1A1A'] 
+      right : ['#E5FFE5', '#B3FFB3', '#7FFF7F', '#4DFF4D', '#1AFF1A'],
+      wrong : ['#FFE5E5', '#FFB3B3', '#FF7F7F', '#FF4D4D', '#FF1A1A']
 };
 
 Correctness.labelValues = { right : 'correct', wrong : 'incorrect' };
@@ -55,10 +57,10 @@ Correctness.prototype.update = function update(data) {
   this.data = stacked;
 
   // Update maxValue
-  this.maxVal.right = mapped[mapped.length-1][0].y0
-    + mapped[mapped.length-1][0].y;
-  this.maxVal.wrong = mapped[mapped.length-1][1].y0
-    + mapped[mapped.length-1][1].y;
+  this.maxVal.right = mapped[mapped.length-1][0].y0 +
+    mapped[mapped.length-1][0].y;
+  this.maxVal.wrong = mapped[mapped.length-1][1].y0 +
+    mapped[mapped.length-1][1].y;
 
   if (! this.isDrawn) {
     return this;
@@ -74,7 +76,7 @@ Correctness.prototype.update = function update(data) {
 
   // Update y-axis
   this.y.domain(this.categories)
-    .rangeRoundBands([0, this.height], .3);
+    .rangeRoundBands([0, this.height], 0.3);
   this.yAxis.scale(this.y);
 
   // Set data
@@ -84,7 +86,7 @@ Correctness.prototype.update = function update(data) {
   bars.selectAll('rect').data(function(d) { return d; })
     .transition()
     .attr('x', function(d) { return that.x(d.y0); })
-    .attr('width', function(d) { return that.x(d.y); })
+    .attr('width', function(d) { return that.x(d.y); });
 };
 
 /*
@@ -117,36 +119,32 @@ Correctness.prototype.render = function render() {
 // Draw the the complete chart
 Correctness.prototype.draw = function draw() {
   // Clean the container
-  d3.select(this.selector).html('');
+  d3.select(this.selector).html('').style('position', 'relative');
 
   var that = this; // Accees the object in d3 data functions
-
-  // SVG Container
+  // SVG Container (tries to set the given size)
   var chart = d3.select(this.selector).append('svg')
     .attr('width', this.width + this.margin.left + this.margin.right)
     .attr('height', this.height + this.margin.top + this.margin.bottom)
     .attr('class', 'av-cor')
     .append('svg:g')
     .attr('class', 'av-cor-chart')
-    .attr('transform', 'translate(' + this.margin.left + ',' 
-      + this.margin.top + ')');
 
-  // Graph bounding box
-  var graphBBox = d3.select(this.selector).select('svg')
-    .node().getBoundingClientRect();
+  // Reset the size to the container.
+  var $parent = $(this.selector).parent();
+  this.width = $parent.width() - this.margin.left - this.margin.right;
+  this.height = $parent.height() - this.margin.top - this.margin.bottom;
+  var svg = d3.select(this.selector + ' svg')
+    .attr('width', this.width + this.margin.left + this.margin.right)
+    .attr('height', this.height + this.margin.top + this.margin.bottom);
 
-  // Title
-  d3.select(this.selector).append('text')
-    .attr('class', 'av-cor-title')
-    .style('left', function() { return graphBBox.left + 'px'; })
-    .style('width', function() { return graphBBox.width + 'px'; })
-    .style('top', function(d) { return graphBBox.top + 5 + 'px'; })
-    .text('Correctness');
+  chart.attr('transform', 'translate(' + this.margin.left + ',' +
+    this.margin.top + ')');
 
   // Tooltip
   var toolTip = d3.select(this.selector).append('div')
     .attr('class', 'av-cor-tooltip')
-    .style('opacity', 0);
+    .style('opacity', 0)
 
   // X-axis
   this.x = d3.scale.linear()
@@ -168,7 +166,7 @@ Correctness.prototype.draw = function draw() {
   // Y-axis
   this.y = d3.scale.ordinal()
     .domain(this.categories)
-    .rangeRoundBands([0, this.height], .3);
+    .rangeRoundBands([0, this.height], 0.3);
 
   this.yAxis = d3.svg.axis()
     .scale(this.y)
@@ -178,12 +176,24 @@ Correctness.prototype.draw = function draw() {
         return Correctness.labelValues[d] + ' (' + that.maxVal[d] + ')' ;
     })
     .orient('left');
-   
+
   chart.append('g')
     .attr('class', 'av-cor-yAxis')
     .call(this.yAxis)
     .selectAll('.tick text')
       .call(utils.wrapLabel, this.y.rangeBand());
+
+  // Title
+  var graphBBox = chart.node().getBBox();
+  var yBBox = chart.select('g.av-cor-yAxis').node().getBBox();
+  var headerHeight = this.margin.top - 15; //Title in margin with slight offset
+  svg.append('text')
+    .attr('class', 'av-cor-title')
+    .style('font-size', headerHeight + 'px')
+    .attr("x", ((this.width+this.margin.left+this.margin.right) / 2))
+    .attr("y", (this.margin.top-headerHeight)/2 + headerHeight)
+    .attr("text-anchor", "middle")
+    .text('Correctness');
 
   // CHART DATA
   var bars = chart.selectAll('g.av-cor-bar').data(this.data)
@@ -195,7 +205,7 @@ Correctness.prototype.draw = function draw() {
     .enter()
     .append('svg:rect')
     .attr('x', function(d) { return that.x(d.y0); })
-    .attr('y', function(d) { 
+    .attr('y', function(d) {
       if (that.showTowers) {
         return that.y(d.x) + that.y.rangeBand() * (0.5 - d.confidence / 10);
       }
@@ -214,62 +224,89 @@ Correctness.prototype.draw = function draw() {
     .style('stroke', function(d) {
       return d3.rgb(Correctness.color[d.x][d.confidence - 1]).darker();
     })
-    .on('mouseover', function displayTooltip(d) {  
-      var bbox = this.getBoundingClientRect();
-      var left = bbox.left + bbox.width * 0.5 - 50;
-      var top = bbox.top + bbox.height * 0.5 - 32;
+    .on('mouseover', function displayTooltip(d) {
 
-      toolTip.transition()        
-        .duration(200)      
-        .style('opacity', .9);      
-      
       toolTip.html([
-        Array(d.confidence + 1).join('&#x2605;'),
-        Array(5 - d.confidence + 1).join('&#x2606;'),
+        new Array(d.confidence + 1).join('&#x2605;'),
+        new Array(5 - d.confidence + 1).join('&#x2606;'),
         '<br/>Confidence<br/>', d.y, ' (',
         Math.round(100 * d.y / that.maxVal[d.x]), '%)'
-      ].join(''))  
-      .style('left', left + 'px')     
-      .style('top', top + 'px');    
-    })                  
-    .on('mouseout', function hideTooltip(d) {       
-        toolTip.transition()        
-          .duration(500)      
-          .style('opacity', 0);   
+      ].join(''))
+
+      var d3this = d3.select(this);
+      var matrix = this.getCTM();
+      var svg = d3.select(that.selector + ' svg').node();
+      var point = svg.createSVGPoint()
+      point.x = d3this.attr('x')
+      point.y = d3this.attr('y')
+      point = point.matrixTransform(matrix);
+
+      var left = point.x + (d3this.attr('width') - toolTip.node().offsetWidth) * 0.5;
+      var top = point.y + (d3this.attr('height') - toolTip.node().offsetHeight) * 0.5;
+
+      toolTip.transition()
+        .duration(200)
+        .style('opacity', 0.9)
+        .style('left', left + 'px')
+        .style('top', top + 'px');
+
+
+    })
+    .on('mouseout', function hideTooltip(d) {
+        toolTip.transition()
+          .duration(500)
+          .style('opacity', 0);
     });
 
-  // Towers / Bars toggle button
-  d3.select(this.selector)
-    .append('input')
-    .attr('type','button')
-    .attr('class','av-cor-button')
-    .attr('value', 'Bars')
-    .style('left', function(d) {
-      return ( graphBBox.left + graphBBox.width 
-        - this.getBoundingClientRect().width - that.margin.right ) + 'px';
-    })
-    .style('top', function(d) { 
-      return ( graphBBox.top + 0.5 * that.margin.top ) + 'px';
-    })
-    .on('click', function toggle() {
+  var toggle = svg.append('g');
+
+  toggle.append('rect')
+    .attr('class','av-cor-button-bg')
+    .attr('x', 0)
+    .attr('y', -headerHeight*0.5)
+    .attr('height', headerHeight*0.5)
+  toggle.append('text')
+    .attr('class','av-cor-button-label')
+    .text('Show towers')
+    .attr('font-size', headerHeight*0.3 + 'px')
+    .attr("text-anchor", "middle")
+    .on('click', function onToggle() {
       that.showTowers = !that.showTowers;
       rects.data(function(d) { return d; })
       .transition()
-      .attr('y', function(d) { 
+      .attr('y', function(d) {
         if (that.showTowers) {
           return that.y(d.x) + that.y.rangeBand() * (0.5 - d.confidence / 10);
         }
         return that.y(d.x);
       })
-      .attr('height', function(d) { 
+      .attr('height', function(d) {
         if (that.showTowers) {
           return that.y.rangeBand() * d.confidence / 5;
         }
         return that.y.rangeBand();
       });
 
-      this.value = !that.showTowers ? 'Show towers' : 'Show bars';
+      d3.select(this).text(!that.showTowers ? 'Show towers' : 'Show bars');
     });
+
+    var toggleWidth = toggle.select('text').node().getComputedTextLength() + 10;
+    toggle.attr('transform',
+      'translate(' + (this.width + this.margin.left - toggleWidth)+ ',' +
+        (this.margin.top + headerHeight*0.5)/2 + ')')
+    .attr('class','av-cor-button')
+    .attr('width', toggleWidth)
+    .attr('height', headerHeight*0.5)
+
+    toggle.select('rect')
+      .attr('width', toggleWidth)
+
+    toggle.select('text')
+      .attr('x', toggleWidth/2)
+      .attr('y', -headerHeight*0.15)
+
+
+
   this.isDrawn = true;
 
   return this;

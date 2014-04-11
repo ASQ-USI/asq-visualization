@@ -3,12 +3,17 @@
     <head>
         <title>ASQ-Visualization Mockup</title>
         <link rel="stylesheet" type="text/css" href="../dist/css/asq-visualization.css">
-        <script type="text/javascript" src="../dist/js/asq-visualization.js"></script>
+        <!--<script type="text/javascript" src="../dist/js/vendor.js"></script>-->
         <script type="text/javascript" src="js/mockups-bundle.js"></script>
+        <script type="text/javascript" src="../dist/js/asq-visualization.js"></script>
     </head>
-    <body>
-    <div id="viz"><span style="color:white">Something!</span></div>
-    <input type="button" id="updateBtn" value="update" style="position:absolute;left:980px" />
+    <body style="background-color:#000;">
+    <section id="slide04">
+        <article data-target-assessment-id="5344771eabd22c0000dbf940" style="max-width:800px;height:400px;">
+            <div class="viz"data-width="600" data-height="280" data-margin="{&quot;top&quot;:60,&quot;bottom&quot;:60,&quot;right&quot;:40,&quot;left&quot;:120}"><span style="color:white">Something!</span></div>
+        </article>
+    </section>
+    <input type="button" id="updateBtn" value="update" style="position:absolute;display:inline-block;left:1000px;top:20px;" />
     <script type="text/javascript">
     window.onload = function() { loadMockup(); };
     </script>

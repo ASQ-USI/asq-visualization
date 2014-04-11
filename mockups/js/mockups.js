@@ -26,13 +26,13 @@ function randomData() {
 }
 
 loadMockup = function() {
-  manager.register('#viz', 'Correctness', graphProp)
-    .update('#viz', 'Correctness', randomData())
-    .render('#viz', 'Correctness'); // Must be called the first time.
+  manager//.register('#slide04 [data-target-assessment-id="5344771eabd22c0000dbf940"] .viz', 'correctness', graphProp)
+    .update('#slide04 [data-target-assessment-id="5344771eabd22c0000dbf940"] .viz', 'correctness', randomData())
+    .render('#slide04 [data-target-assessment-id="5344771eabd22c0000dbf940"] .viz', 'correctness'); // Must be called the first time.
 
   var btn = document.getElementById('updateBtn');
   btn.onclick = function() {
-    manager.update('#viz', 'Correctness', randomData())
+    manager.update('#slide04 [data-target-assessment-id="5344771eabd22c0000dbf940"] .viz', 'correctness', randomData())
   }
 
 }
