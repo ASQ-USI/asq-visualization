@@ -1,3 +1,5 @@
+var d3 = require('d3');
+
 function wrapLabel(text, width) { // From: http://bl.ocks.org/mbostock/7555321
   text.each(function() {
     var text   = d3.select(this),

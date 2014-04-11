@@ -14,18 +14,37 @@ module.exports = function(grunt) {
 
     //browserify
     browserify: {
+      // vendor: {
+      //   src: 'vendor-entry.js',
+      //   dest: 'dist/js/vendor.js',
+      //   options: {
+      //     debug: true,
+      //     shim: {
+      //       jquery: { path: "node_modules/jquery/dist/jquery.js", exports: "$" }
+      //     }
+      //   }
+      // },
       dist: {
         src: ['controller.js'],
         dest: 'dist/js/asq-visualization.js',
         options: {
-          debug: true
+          debug: true,
+          shim: {
+            jquery: { 
+              path: "node_modules/jquery/dist/jquery.js", exports: "$" 
+            },
+            d3: {
+              path: 'node_modules/d3/d3.js', exports: 'd3'
+            }
+          }
         }
       },
       mockups: {
         src: ['mockups/js/mockups.js'],
         dest: 'mockups/js/mockups-bundle.js',
         options: {
-          debug: true
+          debug: true,
+          depends: { d3: 'd3', jquery : 'jquery' }
         }
       }
     },
@@ -39,7 +58,7 @@ module.exports = function(grunt) {
       },
       build: {
         files: {
-          'dist/asq-visualization.min.js' : ['dist/asq-visualization.js'],
+          'dist/js/asq-visualization.min.js' : ['dist/js/asq-visualization.js'],
         }
       }
     },

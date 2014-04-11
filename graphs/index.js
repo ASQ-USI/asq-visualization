@@ -1,3 +1,3 @@
 module.exports = {
-	Correctness : require('./correctness')
+	correctness : require('./correctness')
 }

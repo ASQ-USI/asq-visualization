@@ -24,7 +24,8 @@
   },
   "homepage": "https://github.com/ASQ-USI/asq-visualization",
   "dependencies": {
-    "d3": "^3.4.4"
+    "d3": "^3.4.4",
+    "jquery": "^2.1.0"
   },
   "devDependencies": {
     "browserify": "^3.38.0",
