@@ -70,8 +70,8 @@ var Manager = (function() {
     if (! this.graphs[selector] || ! this.graphs[selector][graphName]) {
       return this;
     }
-    
-    var differentGraph = this.graphs[selector][this.currents[selector]] 
+
+    var differentGraph = this.graphs[selector][this.currents[selector]]
       && this.currents[selector] != graphName
     if (differentGraph) {
       // "Undraw" the previous chart

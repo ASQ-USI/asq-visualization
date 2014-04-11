@@ -106,7 +106,7 @@ Correctness.prototype.render = function render() {
   chart.selectAll('g.av-cor-yAxis').transition()
     .call(this.yAxis)
     .selectAll('.tick text')
-      .call(utils.wrapLabel, this.y.rangeBand());
+      .call(utils.applyLineBreak, this.y.rangeBand());
 
   chart.selectAll('g.av-cor-bar').selectAll('rect')
     .data(function(d) { return d; })
@@ -133,8 +133,14 @@ Correctness.prototype.draw = function draw() {
 
   // Reset the size to the container.
   var $parent = $(this.selector).parent();
-  this.width = $parent.width() - this.margin.left - this.margin.right;
-  this.height = $parent.height() - this.margin.top - this.margin.bottom;
+  var tmpWidth = $parent.width() - this.margin.left - this.margin.right;
+  // if (tmpWidth > this.width) {
+    this.width = tmpWidth;
+  // }
+  var tmpHeight = $parent.height() - this.margin.top - this.margin.bottom;
+  // if (tmpHeight >  this.height) {
+    this.height = tmpHeight
+  // }
   var svg = d3.select(this.selector + ' svg')
     .attr('width', this.width + this.margin.left + this.margin.right)
     .attr('height', this.height + this.margin.top + this.margin.bottom);
@@ -171,18 +177,17 @@ Correctness.prototype.draw = function draw() {
 
   this.yAxis = d3.svg.axis()
     .scale(this.y)
-    .tickPadding(6)
+    .tickPadding(3)
     .outerTickSize(2)
     .tickFormat(function (d) {
-        return Correctness.labelValues[d] + ' (' + that.maxVal[d] + ')' ;
+        return Correctness.labelValues[d] + '\n(' + that.maxVal[d] + ')' ;
     })
     .orient('left');
-
   chart.append('g')
     .attr('class', 'av-cor-yAxis')
     .call(this.yAxis)
     .selectAll('.tick text')
-      .call(utils.wrapLabel, this.y.rangeBand());
+      .call(utils.applyLineBreak, this.y.rangeBand());
 
   // Title
   var graphBBox = chart.node().getBBox();
@@ -391,8 +396,8 @@ var Manager = (function() {
     if (! this.graphs[selector] || ! this.graphs[selector][graphName]) {
       return this;
     }
-    
-    var differentGraph = this.graphs[selector][this.currents[selector]] 
+
+    var differentGraph = this.graphs[selector][this.currents[selector]]
       && this.currents[selector] != graphName
     if (differentGraph) {
       // "Undraw" the previous chart
@@ -18857,10 +18862,10 @@ return jQuery;
 },{}],7:[function(require,module,exports){
 var d3 = require('d3');
 
-function wrapLabel(text, width) { // From: http://bl.ocks.org/mbostock/7555321
+function applyLineBreak(text, width) { // Inspired by: http://bl.ocks.org/mbostock/7555321
   text.each(function() {
     var text   = d3.select(this),
-    words      = text.text().split(/\s+/).reverse(),
+    words      = text.text().split(/\n+/).reverse(),
     word,
     line       = [],
     lineNumber = 0,
@@ -18871,26 +18876,20 @@ function wrapLabel(text, width) { // From: http://bl.ocks.org/mbostock/7555321
     tspan      = text.text(null).append("tspan")
       .attr("x", x)
       .attr("y", y)
-      .attr("dy", dy + "em");
+      .attr("dy", dy + "em")
+      .text(words.pop());
 
     while (word = words.pop()) {
-      line.push(word);
-      tspan.text(line.join(" "));
-      if (tspan.node().getComputedTextLength() > width) {
-        line.pop();
-        tspan.text(line.join(" "));
-        line = [word];
-        tspan = text.append("tspan")
+      tspan = text.append("tspan")
           .attr("x", x)
           .attr("y", y)
           .attr("dy", ++lineNumber * lineHeight + dy + "em")
           .text(word);
-      }
     }
   });
 }
 
 module.exports = {
-  wrapLabel : wrapLabel
+  applyLineBreak : applyLineBreak
 };
 },{"d3":5}]},{},[4]);

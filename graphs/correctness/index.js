@@ -105,7 +105,7 @@ Correctness.prototype.render = function render() {
   chart.selectAll('g.av-cor-yAxis').transition()
     .call(this.yAxis)
     .selectAll('.tick text')
-      .call(utils.wrapLabel, this.y.rangeBand());
+      .call(utils.applyLineBreak, this.y.rangeBand());
 
   chart.selectAll('g.av-cor-bar').selectAll('rect')
     .data(function(d) { return d; })
@@ -132,8 +132,14 @@ Correctness.prototype.draw = function draw() {
 
   // Reset the size to the container.
   var $parent = $(this.selector).parent();
-  this.width = $parent.width() - this.margin.left - this.margin.right;
-  this.height = $parent.height() - this.margin.top - this.margin.bottom;
+  var tmpWidth = $parent.width() - this.margin.left - this.margin.right;
+  // if (tmpWidth > this.width) {
+    this.width = tmpWidth;
+  // }
+  var tmpHeight = $parent.height() - this.margin.top - this.margin.bottom;
+  // if (tmpHeight >  this.height) {
+    this.height = tmpHeight
+  // }
   var svg = d3.select(this.selector + ' svg')
     .attr('width', this.width + this.margin.left + this.margin.right)
     .attr('height', this.height + this.margin.top + this.margin.bottom);
@@ -170,18 +176,17 @@ Correctness.prototype.draw = function draw() {
 
   this.yAxis = d3.svg.axis()
     .scale(this.y)
-    .tickPadding(6)
+    .tickPadding(3)
     .outerTickSize(2)
     .tickFormat(function (d) {
-        return Correctness.labelValues[d] + ' (' + that.maxVal[d] + ')' ;
+        return Correctness.labelValues[d] + '\n(' + that.maxVal[d] + ')' ;
     })
     .orient('left');
-
   chart.append('g')
     .attr('class', 'av-cor-yAxis')
     .call(this.yAxis)
     .selectAll('.tick text')
-      .call(utils.wrapLabel, this.y.rangeBand());
+      .call(utils.applyLineBreak, this.y.rangeBand());
 
   // Title
   var graphBBox = chart.node().getBBox();
