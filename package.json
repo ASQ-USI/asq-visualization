@@ -1,6 +1,6 @@
 {
   "name": "asq-visualization",
-  "version": "0.0.1-pre",
+  "version": "0.0.1",
   "description": "Visualization for ASQ",
   "main": "index.js",
   "scripts": {
