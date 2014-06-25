@@ -73,12 +73,13 @@ Correctness.prototype.update = function update(data) {
   this.x.domain([0, d3.max([this.maxVal.right, this.maxVal.wrong])])
     .range([0, this.width]);
   this.xAxis.scale(this.x)
-    .ticks(Math.floor(d3.max([this.maxVal.right, this.maxVal.wrong])/10));
+    // .ticks(Math.floor(d3.max([this.maxVal.right, this.maxVal.wrong])/10));
 
   // Update y-axis
   this.y.domain(this.categories)
     .rangeRoundBands([0, this.height], 0.3);
-  this.yAxis.scale(this.y);
+  this.yAxis
+    .scale(this.y);
 
   // Set data
   var bars = d3.select(this.selector).selectAll('g.av-cor-bar').data(this.data);
@@ -88,6 +89,8 @@ Correctness.prototype.update = function update(data) {
     .transition()
     .attr('x', function(d) { return that.x(d.y0); })
     .attr('width', function(d) { return that.x(d.y); });
+
+  return this;
 };
 
 /*
@@ -113,6 +116,10 @@ Correctness.prototype.render = function render() {
     .transition()
     .attr('x', function(d) { return that.x(d.y0); })
     .attr('width', function(d) { return that.x(d.y); });
+
+  d3.select(this.selector).select('.av-cor-title')
+    .text('Correctness: ' + (Math.round(
+      this.maxVal.right/(this.maxVal.right + this.maxVal.wrong) * 100) || 0) + '%');
 
   return this;
 };
@@ -161,7 +168,7 @@ Correctness.prototype.draw = function draw() {
   this.xAxis = d3.svg.axis()
     .scale(this.x)
     .tickPadding(11)
-    .ticks(Math.floor(d3.max([this.maxVal.right, this.maxVal.wrong])/10))
+    // .ticks(Math.floor(d3.max([this.maxVal.right, this.maxVal.wrong])/10))
     .tickSize(-this.height, 0 ,0)
     .orient('bottom');
 
@@ -199,7 +206,8 @@ Correctness.prototype.draw = function draw() {
     .attr("x", ((this.width+this.margin.left+this.margin.right) / 2))
     .attr("y", (this.margin.top-headerHeight)/2 + headerHeight)
     .attr("text-anchor", "middle")
-    .text('Correctness');
+    .text('Correctness: ' + (Math.round(
+      this.maxVal.right/(this.maxVal.right + this.maxVal.wrong) * 100) || 0) + '%');
 
   // CHART DATA
   var bars = chart.selectAll('g.av-cor-bar').data(this.data)
@@ -336,9 +344,8 @@ var Manager = (function() {
     }
 
     // Current graphs
-    this.currents = {};
-
-    this.graphs = {};
+    this.currents = new Object(null);
+    this.graphs = new Object(null);
   }
 
   var autoRegister = function autoRegister(selector, graphName) {
@@ -394,12 +401,16 @@ var Manager = (function() {
    **/
   Manager.prototype.render = function render(selector, graphName) {
     if (! this.graphs[selector] || ! this.graphs[selector][graphName]) {
+      consoel.log('somthing wnet wrong')
       return this;
     }
 
-    var differentGraph = this.graphs[selector][this.currents[selector]]
-      && this.currents[selector] != graphName
-    if (differentGraph) {
+    var noGraphSet = ! this.currents[selector];
+    var differentGraph = this.currents[selector] &&
+      this.currents[selector] !== graphName;
+    if (noGraphSet) {
+      this.currents[selector] = graphName; // Set new chart
+    } else if (differentGraph) {
       // "Undraw" the previous chart
       this.graphs[selector][this.currents[selector]].isDrawn = false;
       this.currents[selector] = graphName; // Set new chart
@@ -430,20 +441,37 @@ function randomInt (low, high) {
 }
 
 function randomData() {
+  var size = 100;
+  var c = randomInt(size/4, 3*size/4);
+  var i = size -c;
+  var c5s = randomInt(0, c);
+  var c4s = randomInt(0, d3.max([c-c5s, 0]));
+  var c3s = randomInt(0, d3.max([c-c5s-c4s, 0]));
+  var c2s = randomInt(0, d3.max([c-c5s-c4s-c3s, 0]));
+  var c1s = randomInt(0, d3.max([c-c5s-c4s-c3s-c2s, 0]));
+  var i5s = randomInt(0, i);
+  var i4s = randomInt(0, d3.max([i-i5s, 0]));
+  var i3s = randomInt(0, d3.max([i-i5s-i4s, 0]));
+  var i2s = randomInt(0, d3.max([i-i5s-i4s-i3s, 0]));
+  var i1s = randomInt(0, d3.max([i-i5s-i4s-i3s-i2s, 0]));
+  // return [
+  //   { "key" : "right", "5star": c5s, "4star": c4s, "3star": c3s, "2star": c2s,
+  //     "1star": c1s },
+  //   { "key" : "wrong", "5star": i1s, "4star": i2s, "3star": i3s, "2star": i4s,
+  //     "1star": i5s }
+  // ];
   return [
-    { "key" : "right", "5star": randomInt(0, 20),
-      "4star": randomInt(0, 20), "3star": randomInt(0, 20),
-      "2star": randomInt(0, 20), "1star": randomInt(0, 20) },
-    { "key" : "wrong", "5star": randomInt(0, 20),
-      "4star": randomInt(0, 20), "3star": randomInt(0, 20),
-      "2star": randomInt(0, 20), "1star": randomInt(0, 20) }
+    { "key" : "right", "5star": 0, "4star": 0, "3star": 0, "2star": 0,
+      "1star": 0 },
+    { "key" : "wrong", "5star": 0, "4star": 0, "3star": 0, "2star": 0,
+      "1star": 0 }
   ];
 }
 
 loadMockup = function() {
   manager//.register('#slide04 [data-target-assessment-id="5344771eabd22c0000dbf940"] .viz', 'correctness', graphProp)
     .update('#slide04 [data-target-assessment-id="5344771eabd22c0000dbf940"] .viz', 'correctness', randomData())
-    .render('#slide04 [data-target-assessment-id="5344771eabd22c0000dbf940"] .viz', 'correctness'); // Must be called the first time.
+  manager.render('#slide04 [data-target-assessment-id="5344771eabd22c0000dbf940"] .viz', 'correctness'); // Must be called the first time.
 
   var btn = document.getElementById('updateBtn');
   btn.onclick = function() {

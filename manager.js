@@ -10,9 +10,8 @@ var Manager = (function() {
     }
 
     // Current graphs
-    this.currents = {};
-
-    this.graphs = {};
+    this.currents = new Object(null);
+    this.graphs = new Object(null);
   }
 
   var autoRegister = function autoRegister(selector, graphName) {
@@ -68,12 +67,16 @@ var Manager = (function() {
    **/
   Manager.prototype.render = function render(selector, graphName) {
     if (! this.graphs[selector] || ! this.graphs[selector][graphName]) {
+      consoel.log('somthing wnet wrong')
       return this;
     }
 
-    var differentGraph = this.graphs[selector][this.currents[selector]]
-      && this.currents[selector] != graphName
-    if (differentGraph) {
+    var noGraphSet = ! this.currents[selector];
+    var differentGraph = this.currents[selector] &&
+      this.currents[selector] !== graphName;
+    if (noGraphSet) {
+      this.currents[selector] = graphName; // Set new chart
+    } else if (differentGraph) {
       // "Undraw" the previous chart
       this.graphs[selector][this.currents[selector]].isDrawn = false;
       this.currents[selector] = graphName; // Set new chart

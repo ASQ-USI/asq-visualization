@@ -72,12 +72,13 @@ Correctness.prototype.update = function update(data) {
   this.x.domain([0, d3.max([this.maxVal.right, this.maxVal.wrong])])
     .range([0, this.width]);
   this.xAxis.scale(this.x)
-    .ticks(Math.floor(d3.max([this.maxVal.right, this.maxVal.wrong])/10));
+    // .ticks(Math.floor(d3.max([this.maxVal.right, this.maxVal.wrong])/10));
 
   // Update y-axis
   this.y.domain(this.categories)
     .rangeRoundBands([0, this.height], 0.3);
-  this.yAxis.scale(this.y);
+  this.yAxis
+    .scale(this.y);
 
   // Set data
   var bars = d3.select(this.selector).selectAll('g.av-cor-bar').data(this.data);
@@ -87,6 +88,8 @@ Correctness.prototype.update = function update(data) {
     .transition()
     .attr('x', function(d) { return that.x(d.y0); })
     .attr('width', function(d) { return that.x(d.y); });
+
+  return this;
 };
 
 /*
@@ -112,6 +115,10 @@ Correctness.prototype.render = function render() {
     .transition()
     .attr('x', function(d) { return that.x(d.y0); })
     .attr('width', function(d) { return that.x(d.y); });
+
+  d3.select(this.selector).select('.av-cor-title')
+    .text('Correctness: ' + (Math.round(
+      this.maxVal.right/(this.maxVal.right + this.maxVal.wrong) * 100) || 0) + '%');
 
   return this;
 };
@@ -160,7 +167,7 @@ Correctness.prototype.draw = function draw() {
   this.xAxis = d3.svg.axis()
     .scale(this.x)
     .tickPadding(11)
-    .ticks(Math.floor(d3.max([this.maxVal.right, this.maxVal.wrong])/10))
+    // .ticks(Math.floor(d3.max([this.maxVal.right, this.maxVal.wrong])/10))
     .tickSize(-this.height, 0 ,0)
     .orient('bottom');
 
@@ -198,7 +205,8 @@ Correctness.prototype.draw = function draw() {
     .attr("x", ((this.width+this.margin.left+this.margin.right) / 2))
     .attr("y", (this.margin.top-headerHeight)/2 + headerHeight)
     .attr("text-anchor", "middle")
-    .text('Correctness');
+    .text('Correctness: ' + (Math.round(
+      this.maxVal.right/(this.maxVal.right + this.maxVal.wrong) * 100) || 0) + '%');
 
   // CHART DATA
   var bars = chart.selectAll('g.av-cor-bar').data(this.data)
